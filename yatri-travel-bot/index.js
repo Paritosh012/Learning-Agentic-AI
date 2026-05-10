@@ -16,6 +16,7 @@
 import readline from "readline";
 import { chat, getSessionTokens, resetSessionTokens } from "./lib/llm.js";
 import { YATRI_SYSTEM_PROMPT } from "./config/personality.js";
+import { generateItinerary } from "./lib/itineraryGenerator.js";
 
 // 🧠 The conversation history — OUR memory, not the LLM's.
 // Starts with just the system prompt; grows as the chat continues.
@@ -44,6 +45,73 @@ function printTokenUsage() {
   console.log(`   History size: ${history.length} messages\n`);
 }
 
+function printItinerary(itinerary) {
+  const {
+    trip_summary = {},
+    accommodation = {},
+    cost_breakdown = {},
+    daily_plan = [],
+    tips = [],
+  } = itinerary;
+
+  console.log("─".repeat(60));
+  console.log(
+    `📍 ${trip_summary.destination.toUpperCase()} — ${trip_summary.duration_days} days`,
+  );
+  console.log(`🎨 Vibe: ${trip_summary.vibe_preference}`);
+  console.log(
+    `💰 Total: ₹${trip_summary.estimated_total_cost_inr.toLocaleString("en-IN")}`,
+  );
+
+  if (trip_summary.user_constraints.length > 0) {
+    console.log(`⚠️  Constraints: ${trip_summary.user_constraints.join(", ")}`);
+  }
+
+  console.log(
+    `\n🏨 Stay: ${accommodation.type} in ${accommodation.neighborhood_suggestion}`,
+  );
+  console.log(
+    `   ₹${accommodation.estimated_cost_per_night_inr.toLocaleString("en-IN")}/night`,
+  );
+
+  console.log(`\n💸 Cost breakdown:`);
+  console.log(
+    `   🏨 Accommodation: ₹${cost_breakdown.accommodation_total_inr.toLocaleString("en-IN")}`,
+  );
+  console.log(
+    `   🎯 Activities:    ₹${cost_breakdown.activities_total_inr.toLocaleString("en-IN")}`,
+  );
+  console.log(
+    `   🍽️  Food:          ₹${cost_breakdown.food_total_inr.toLocaleString("en-IN")}`,
+  );
+  console.log(
+    `   🚗 Transport:     ₹${cost_breakdown.transport_total_inr.toLocaleString("en-IN")}`,
+  );
+  console.log(
+    `   🛟 Buffer:        ₹${cost_breakdown.buffer_inr.toLocaleString("en-IN")}`,
+  );
+
+  console.log("─".repeat(60));
+
+  for (const day of daily_plan) {
+    console.log(`\n📅 Day ${day.day} — ${day.theme}`);
+    for (const activity of day.activities) {
+      const time = activity.time.padEnd(10);
+      const cost = `₹${activity.estimated_cost_inr.toLocaleString("en-IN")}`;
+      const flag = activity.respects_constraints ? "✓" : "⚠️";
+      const cat = `[${activity.category}]`.padEnd(12);
+      console.log(`   ${time} ${cat} ${flag} ${activity.activity} (${cost})`);
+    }
+  }
+
+  console.log("\n💡 Tips:");
+  for (const tip of tips) {
+    console.log(`   • ${tip}`);
+  }
+
+  console.log("─".repeat(60) + "\n");
+}
+
 async function main() {
   printBanner();
 
@@ -69,6 +137,28 @@ async function main() {
 
     if (userInput === "/tokens") {
       printTokenUsage();
+      continue;
+    }
+
+    if (userInput.startsWith("/plan ")) {
+      const tripRequest = userInput.slice(6).trim(); // remove "/plan " prefix
+
+      if (!tripRequest) {
+        console.log(
+          "Usage: /plan <description>\nExample: /plan 4 days in Manali, veg, budget 25k\n",
+        );
+        continue;
+      }
+
+      console.log("\n✈️  Generating itinerary...\n");
+
+      try {
+        const itinerary = await generateItinerary(tripRequest);
+        printItinerary(itinerary);
+      } catch (err) {
+        console.error("❌ Couldn't generate itinerary:", err.message);
+      }
+
       continue;
     }
 
