@@ -17,6 +17,7 @@ import readline from "readline";
 import { chat, getSessionTokens, resetSessionTokens } from "./lib/llm.js";
 import { YATRI_SYSTEM_PROMPT } from "./config/personality.js";
 import { generateItinerary } from "./lib/itineraryGenerator.js";
+import { runAgent } from "./lib/agent.js";
 
 // 🧠 The conversation history — OUR memory, not the LLM's.
 // Starts with just the system prompt; grows as the chat continues.
@@ -33,7 +34,7 @@ function printBanner() {
   console.log("\n╔════════════════════════════════════════════╗");
   console.log("║   🧳  YATRI — Your AI Travel Companion    ║");
   console.log("╚════════════════════════════════════════════╝");
-  console.log("Commands:  /exit  /reset  /tokens\n");
+  console.log("Commands:  /exit  /reset  /tokens /agent\n");
 }
 
 function printTokenUsage() {
@@ -157,6 +158,45 @@ async function main() {
         printItinerary(itinerary);
       } catch (err) {
         console.error("❌ Couldn't generate itinerary:", err.message);
+      }
+
+      continue;
+    }
+
+    if (userInput.startsWith("/agent ")) {
+      const question = userInput.slice(7).trim();
+
+      if (!question) {
+        console.log("Usage: /agent <your question>");
+        console.log("Example: /agent Should I visit Manali this weekend?\n");
+        continue;
+      }
+
+      console.log("\n🤖 Agent working...\n");
+
+      try {
+        const answer = await runAgent(question, (step) => {
+          if (step.type === "iteration") {
+            if (step.number > 1)
+              console.log(`   ─── iteration ${step.number} ───`);
+          } else if (step.type === "tool_call") {
+            const argsStr = JSON.stringify(step.args);
+            console.log(`   🔧 ${step.name}(${argsStr})`);
+          } else if (step.type === "tool_result") {
+            const preview = JSON.stringify(step.result);
+            const truncated =
+              preview.length > 120 ? preview.slice(0, 120) + "..." : preview;
+            console.log(`   📊 → ${truncated}`);
+          } else if (step.type === "final_answer") {
+            console.log(`\n🧳 Yatri:\n${step.content}\n`);
+          } else if (step.type === "retry") {
+            console.log(
+              `   ⚠️  ${step.reason} (${step.retriesLeft} retries left)`,
+            );
+          }
+        });
+      } catch (err) {
+        console.error(`\n❌ Agent failed: ${err.message}\n`);
       }
 
       continue;
