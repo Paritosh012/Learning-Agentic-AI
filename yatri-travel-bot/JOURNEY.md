@@ -346,5 +346,38 @@ Things deferred so we could stay focused:
 
 ---
 
-*Last updated: Day 3 — May 14, 2026*
-*Next update: After Day 4 (Memory Strategies)*
+---
+
+### ✅ Day 4 — Memory Strategies (May 14, 2026)
+
+**Theme:** Give Yatri a notebook that survives restarts.
+
+**What was built:**
+- `data/user-profile.json` — the persistent memory notebook
+- `lib/memory/profileStore.js` — reads/writes the JSON file
+- `lib/memory/factExtractor.js` — LLM listens to conversations, extracts facts
+- `lib/memory/memoryFormatter.js` — formats profile into prompt context
+- Updated `config/personality.js` — v3 with `{{PROFILE_CONTEXT}}` placeholder
+- Updated `lib/llm.js` — now accepts profile, injects it into system prompt
+- Updated `index.js` — loads profile at startup, /profile and /forget commands
+
+**Key concepts internalized:**
+- Two types of memory: session (messages array) vs persistent (JSON file)
+- LLM-based fact extraction — understands "I don't eat meat" = vegetarian
+- Fire-and-forget pattern — background updates don't slow user UX
+- Profile-as-context injection — user facts become part of every system prompt
+- Swap-ready storage — profileStore.js swaps to MongoDB on Day 9 (one file changes)
+
+**New commands added:**
+- `/profile` — shows everything Yatri remembers about you
+- `/forget` — wipes the memory notebook clean
+
+**The "aha" moment:**
+> After a full restart, Yatri greeted me by name without being told.
+> That moment — "Welcome back, Paritosh!" — made it feel like a real product.
+> Not a demo. Not a chatbot. A personal travel assistant that actually knows me.
+
+**The engineering insight:**
+> Persistent AI memory is just a JSON file read at startup and written
+> when new facts are learned. The "intelligence" is LLM-based extraction
+> from natural language. The magic is architecture, not mystery.
