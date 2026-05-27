@@ -1,0 +1,5 @@
+{
+  "ignore": ["data/*"],
+  "watch": ["*.js", "lib/**/*.js", "config/**/*.js"],
+  "ext": "js,mjs"
+}

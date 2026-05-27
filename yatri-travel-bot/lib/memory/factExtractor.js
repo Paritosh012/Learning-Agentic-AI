@@ -21,7 +21,9 @@ Output a JSON object with ONLY the fields that should be updated.
 If nothing new is revealed, output {}.
 
 Valid fields you can update:
-- name (string) — user's name
+- name (string) — ONLY extract if user explicitly says "My name is X",
+  "I'm X", or "Call me X". Never extract names from greetings like
+  "Hi", "Hello", "Hey". Never infer names from context.
 - preferences.diet (string) — "vegetarian", "vegan", "non-vegetarian", "jain", etc.
 - preferences.travel_style (string) — "nature", "adventure", "cultural", "relaxation", "mixed"
 - preferences.pace (string) — "fast-paced", "relaxed", "moderate"
@@ -38,7 +40,17 @@ RULES:
 - Output ONLY valid JSON, no markdown, no commentary.
 - Only include fields that have NEW info. Don't repeat what's already in the profile.
 - For arrays, output items to APPEND (don't include existing items).
-- If the message is just chitchat with no facts, output {}.`;
+- If the message is just chitchat with no facts, output {}.
+- NEVER extract command prefixes like "/grumpy", "/plan", "/agent" as facts.
+- Only extract facts from the actual question content.
+- NEVER extract abstract words like "nowhere", "somewhere", 
+  "anywhere", "everywhere" as places.
+- Only extract real, named geographic locations.
+- NEVER extract casual address words like "man", "bro", "yaar", 
+  "dude", "sir" as names.
+- A name must follow explicit patterns: "I'm X", "My name is X", 
+  "Call me X".
+`;
 
 /**
  * Extract facts from a user message in the context of their profile.
@@ -47,6 +59,13 @@ RULES:
  * @returns {Promise<Object>} - partial profile object with only new fields
  */
 export async function extractFacts(userMessage, currentProfile) {
+  const SKIP_PATTERNS = [
+    /^(hi|hello|hey|ok|okay|thanks|bye|yes|no|sure|great)[\s!?.]*$/i,
+  ];
+
+  if (SKIP_PATTERNS.some((p) => p.test(userMessage.trim()))) {
+    return {}; // Skip LLM call entirely for simple greetings
+  }
   try {
     const response = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile", // Cheap model for extraction
@@ -85,17 +104,8 @@ export function mergeFacts(profile, facts) {
     } else if (typeof value === "object" && value !== null) {
       // Nested object — recurse
       if (!profile[key]) profile[key] = {};
-      for (const [subKey, subValue] of Object.entries(value)) {
-        if (Array.isArray(subValue)) {
-          // Append to array, dedupe
-          profile[key][subKey] = [
-            ...new Set([...(profile[key][subKey] || []), ...subValue]),
-          ];
-        } else {
-          // Scalar — overwrite
-          profile[key][subKey] = subValue;
-        }
-      }
+
+      mergeFacts(profile[key], value);
     } else {
       // Top-level scalar
       profile[key] = value;

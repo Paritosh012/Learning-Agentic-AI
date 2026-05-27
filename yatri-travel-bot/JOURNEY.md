@@ -348,36 +348,48 @@ Things deferred so we could stay focused:
 
 ---
 
-### ✅ Day 4 — Memory Strategies (May 14, 2026)
+### ✅ Day 4 — Memory Strategies (May 15, 2026)
 
 **Theme:** Give Yatri a notebook that survives restarts.
 
 **What was built:**
 - `data/user-profile.json` — the persistent memory notebook
 - `lib/memory/profileStore.js` — reads/writes the JSON file
-- `lib/memory/factExtractor.js` — LLM listens to conversations, extracts facts
+- `lib/memory/factExtractor.js` — LLM extracts facts from natural language
 - `lib/memory/memoryFormatter.js` — formats profile into prompt context
-- Updated `config/personality.js` — v3 with `{{PROFILE_CONTEXT}}` placeholder
-- Updated `lib/llm.js` — now accepts profile, injects it into system prompt
+- Updated `config/personality.js` — v3 with {{PROFILE_CONTEXT}} placeholder
+- Updated `lib/llm.js` — accepts profile, injects into system prompt
 - Updated `index.js` — loads profile at startup, /profile and /forget commands
 
 **Key concepts internalized:**
 - Two types of memory: session (messages array) vs persistent (JSON file)
-- LLM-based fact extraction — understands "I don't eat meat" = vegetarian
-- Fire-and-forget pattern — background updates don't slow user UX
-- Profile-as-context injection — user facts become part of every system prompt
-- Swap-ready storage — profileStore.js swaps to MongoDB on Day 9 (one file changes)
+- LLM-based extraction — understands "I'm veg" AND "I don't eat meat"
+- Fire-and-forget — background updates don't slow user response
+- Profile-as-context injection — user facts silently shape every response
+- Swap-ready storage — profileStore.js will swap to MongoDB on Day 9
 
-**New commands added:**
-- `/profile` — shows everything Yatri remembers about you
-- `/forget` — wipes the memory notebook clean
+**All 8 tests passed:**
+  ✅ First run greeting (empty profile detected)
+  ✅ Fact extraction (one sentence → 3 categories)
+  ✅ Cross-session memory ("Welcome back, Paritosh!" after full restart)
+  ✅ Profile check (/profile shows structured data)
+  ✅ Incremental memory (heights fear + peanut allergy added)
+  ✅ Memory shapes responses (no-heights destination suggested unprompted)
+  ✅ Memory + agent together (weather + calculator + profile constraints)
+  ✅ Forget works (clean slate after /forget + restart)
 
 **The "aha" moment:**
-> After a full restart, Yatri greeted me by name without being told.
-> That moment — "Welcome back, Paritosh!" — made it feel like a real product.
-> Not a demo. Not a chatbot. A personal travel assistant that actually knows me.
+> After a full restart, Yatri said "Welcome back, Paritosh!" without
+> being told anything. Then suggested a trip avoiding heights — without
+> being reminded. The product finally feels ALIVE. Not a chatbot.
+> A travel assistant that actually knows me.
+
+**Subtle observation:**
+> Yatri still recommended Mussoorie (a hill station) despite knowing
+> about heights fear. Memory was read correctly — LLM rationalized anyway.
+> Day 5's reflection/audit step will catch this class of bug.
 
 **The engineering insight:**
-> Persistent AI memory is just a JSON file read at startup and written
-> when new facts are learned. The "intelligence" is LLM-based extraction
-> from natural language. The magic is architecture, not mystery.
+> AI memory is a JSON file + an LLM that listens + a prompt placeholder.
+> Three pieces. No magic. The "intelligence" is in the architecture,
+> not the model.

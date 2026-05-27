@@ -48,9 +48,8 @@ const EMPTY_PROFILE = {
 export async function loadProfile() {
   try {
     if (!existsSync(PROFILE_PATH)) {
-      // First run — create directory + empty profile
       await mkdir(dirname(PROFILE_PATH), { recursive: true });
-      const fresh = { ...EMPTY_PROFILE };
+      const fresh = JSON.parse(JSON.stringify(EMPTY_PROFILE)); // ← DEEP CLONE
       fresh.metadata.created_at = new Date().toISOString();
       await saveProfile(fresh);
       return fresh;
@@ -61,7 +60,7 @@ export async function loadProfile() {
   } catch (err) {
     console.error("⚠️  Profile load failed:", err.message);
     console.error("    Starting with empty profile.");
-    return { ...EMPTY_PROFILE };
+    return JSON.parse(JSON.stringify(EMPTY_PROFILE)); // ← DEEP CLONE
   }
 }
 
