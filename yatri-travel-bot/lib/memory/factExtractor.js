@@ -50,6 +50,9 @@ RULES:
   "dude", "sir" as names.
 - A name must follow explicit patterns: "I'm X", "My name is X", 
   "Call me X".
+- For fears[], only extract travel-relevant fears
+  (heights, water, crowds, flying, animals etc.)
+- NEVER extract people, relationships, or jokes as fears.
 `;
 
 /**
