@@ -14,45 +14,71 @@ import "dotenv/config";
 
 const client = new Groq();
 
-const EXTRACTION_PROMPT = `You are a fact extractor for a travel assistant.
+const EXTRACTION_PROMPT = `You are a strict fact extractor for a travel assistant.
+Your job: find NEW travel-relevant facts about the user. Nothing else.
 
-Given the user's message and their current profile, extract any NEW facts.
-Output a JSON object with ONLY the fields that should be updated.
-If nothing new is revealed, output {}.
+═══ OUTPUT FORMAT ═══
+- Output ONLY valid JSON. No markdown, no commentary, no explanation.
+- Only include fields with genuinely NEW information.
+- For arrays, output only items to APPEND (not existing items).
+- If NOTHING new is revealed → output exactly: {}
 
-Valid fields you can update:
-- name (string) — ONLY extract if user explicitly says "My name is X",
-  "I'm X", or "Call me X". Never extract names from greetings like
-  "Hi", "Hello", "Hey". Never infer names from context.
-- preferences.diet (string) — "vegetarian", "vegan", "non-vegetarian", "jain", etc.
-- preferences.travel_style (string) — "nature", "adventure", "cultural", "relaxation", "mixed"
+═══ VALID FIELDS ═══
+- name (string)
+- preferences.diet (string) — "vegetarian", "vegan", "non-veg", "jain"
+- preferences.travel_style (string) — "nature", "adventure", "cultural", "relaxation"
 - preferences.pace (string) — "fast-paced", "relaxed", "moderate"
 - preferences.budget_tier (string) — "budget", "mid-range", "luxury"
-- constraints.fears (array) — append items like "heights", "water", "crowds"
-- constraints.allergies (array) — append items like "peanuts", "lactose"
-- constraints.accessibility_needs (array) — append mobility/medical needs
-- constraints.family_context (string) — "8-month-old baby", "elderly parents", etc.
-- history.places_discussed (array) — append any city/country mentioned in conversation
-- history.places_visited (array) — append if user says they've been somewhere
-- history.places_wishlist (array) — append if user says they want to go somewhere
+- constraints.fears (array) — ONLY travel fears: "heights", "water", "crowds", "flying"
+- constraints.allergies (array) — "peanuts", "lactose", etc.
+- constraints.accessibility_needs (array) — mobility/medical needs
+- constraints.family_context (string) — "8-month-old baby", "elderly parents"
+- history.places_visited (array) — places user HAS been to
+- history.places_wishlist (array) — places user WANTS to go
+- history.places_discussed (array) — places mentioned in conversation
 
-RULES:
-- Output ONLY valid JSON, no markdown, no commentary.
-- Only include fields that have NEW info. Don't repeat what's already in the profile.
-- For arrays, output items to APPEND (don't include existing items).
-- If the message is just chitchat with no facts, output {}.
-- NEVER extract command prefixes like "/grumpy", "/plan", "/agent" as facts.
-- Only extract facts from the actual question content.
-- NEVER extract abstract words like "nowhere", "somewhere", 
-  "anywhere", "everywhere" as places.
-- Only extract real, named geographic locations.
-- NEVER extract casual address words like "man", "bro", "yaar", 
-  "dude", "sir" as names.
-- A name must follow explicit patterns: "I'm X", "My name is X", 
-  "Call me X".
-- For fears[], only extract travel-relevant fears
-  (heights, water, crowds, flying, animals etc.)
-- NEVER extract people, relationships, or jokes as fears.
+═══ CRITICAL RULES — NEVER VIOLATE ═══
+
+1. NAME EXTRACTION — STRICTEST RULE:
+   ONLY extract a name if the user explicitly introduces themselves:
+   ✅ "My name is Paritosh" → { "name": "Paritosh" }
+   ✅ "I'm Paritosh" → { "name": "Paritosh" }
+   ✅ "Call me Pari" → { "name": "Pari" }
+   ❌ "I am your boss" → {} (role claim, NOT a name)
+   ❌ "Paritosh is your boss" → {} (talking about someone ELSE)
+   ❌ "oye" → {} (slang greeting, NOT a name)
+   ❌ "notthere" → {} (random word, NOT a name)
+   ❌ Any word that isn't preceded by "my name is", "I'm", or "call me" → NOT a name
+
+2. THIRD PERSON REFERENCES:
+   If the user talks about someone ELSE, extract NOTHING.
+   ❌ "Paritosh is your creator" → {} (not about the user)
+   ❌ "My friend went to Goa" → {} (friend's trip, not user's)
+
+3. QUESTIONS REVEAL NOTHING:
+   If the user is ASKING a question, they are NOT stating a fact.
+   ❌ "What is my name?" → {}
+   ❌ "Where should I go?" → {}
+   ❌ "How can you accept me as your boss?" → {}
+
+4. NEGATIONS AND REJECTIONS:
+   ❌ "not there" → {} (rejection, not a place)
+   ❌ "I don't want to go anywhere" → {}
+   ❌ "nowhere", "nothing", "nah" → {}
+
+5. CONVERSATIONAL FILLER:
+   ❌ "oye", "arre", "hm", "ok", "lol", "haha" → {}
+   ❌ "Or kya line aaj ki" → {} (chitchat, no facts)
+   ❌ Any casual banter without explicit travel facts → {}
+
+6. PLACES:
+   - ONLY extract REAL, NAMED geographic locations (cities, countries, states)
+   - ❌ "nowhere", "somewhere", "anywhere", "everywhere" → NOT places
+   - ❌ "there", "here", "that place" → NOT places
+
+7. When in doubt → output {}
+   It is ALWAYS better to miss a fact than to save garbage.
+   False negatives are acceptable. False positives corrupt the profile.
 `;
 
 /**
@@ -62,16 +88,39 @@ RULES:
  * @returns {Promise<Object>} - partial profile object with only new fields
  */
 export async function extractFacts(userMessage, currentProfile) {
+  // ── GUARD 1: Skip short messages (under 4 words = no extractable facts) ──
+  const words = userMessage.trim().split(/\s+/);
+  if (words.length < 4) return {};
+
+  // ── GUARD 2: Skip greetings and filler ──
   const SKIP_PATTERNS = [
-    /^(hi|hello|hey|ok|okay|thanks|bye|yes|no|sure|great)[\s!?.]*$/i,
+    /^(hi|hello|hey|ok|okay|thanks|bye|yes|no|sure|great|hm+|oye|arre|yaar)[\s!?.]*$/i,
+    /^(nothing|notthere|nowhere|nope|nah|fine|cool|good)[\s!?.]*$/i,
   ];
 
   if (SKIP_PATTERNS.some((p) => p.test(userMessage.trim()))) {
-    return {}; // Skip LLM call entirely for simple greetings
+    return {};
+  }
+
+  // ── GUARD 3: Skip questions (questions reveal no facts about the user) ──
+  const trimmed = userMessage.trim();
+  if (
+    trimmed.startsWith("what ") ||
+    trimmed.startsWith("how ") ||
+    trimmed.startsWith("why ") ||
+    trimmed.startsWith("when ") ||
+    trimmed.startsWith("where ") ||
+    trimmed.startsWith("who ") ||
+    trimmed.startsWith("can ") ||
+    trimmed.startsWith("do ") ||
+    trimmed.startsWith("is ") ||
+    trimmed.endsWith("?")
+  ) {
+    return {};
   }
   try {
     const response = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile", // Cheap model for extraction 
+      model: "llama-3.3-70b-versatile", // Cheap model for extraction
       messages: [
         { role: "system", content: EXTRACTION_PROMPT },
         {
@@ -105,7 +154,6 @@ export function mergeFacts(profile, facts) {
       // For top-level arrays (unlikely in our schema, but safe)
       profile[key] = [...new Set([...(profile[key] || []), ...value])];
     } else if (typeof value === "object" && value !== null) {
-
       // Nested object — recurse
       if (!profile[key]) {
         profile[key] = {};
