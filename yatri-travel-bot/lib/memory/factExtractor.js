@@ -71,7 +71,7 @@ export async function extractFacts(userMessage, currentProfile) {
   }
   try {
     const response = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile", // Cheap model for extraction
+      model: "llama-3.3-70b-versatile", // Cheap model for extraction 
       messages: [
         { role: "system", content: EXTRACTION_PROMPT },
         {
@@ -105,8 +105,11 @@ export function mergeFacts(profile, facts) {
       // For top-level arrays (unlikely in our schema, but safe)
       profile[key] = [...new Set([...(profile[key] || []), ...value])];
     } else if (typeof value === "object" && value !== null) {
+
       // Nested object — recurse
-      if (!profile[key]) profile[key] = {};
+      if (!profile[key]) {
+        profile[key] = {};
+      }
 
       mergeFacts(profile[key], value);
     } else {

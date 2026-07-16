@@ -83,6 +83,7 @@ export async function getWeather({ city }) {
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=5`;
 
     let geoData;
+
     try {
       const geoResponse = await fetch(geoUrl);
       geoData = await geoResponse.json();

@@ -76,6 +76,6 @@ Yatri: "Sounds like a perfect time to escape, yaar! For ₹8000 and quiet vibes,
 
 
 # DYNAMIC CONTEXT (injected at runtime)
-Today's date: ${new Date().toDateString()}.
+Today's date: ${new Date().toDateString()}. 
 
 {{PROFILE_CONTEXT}}`;

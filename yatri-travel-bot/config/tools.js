@@ -35,12 +35,13 @@ export const TOOL_SCHEMAS = [
         properties: {
           city: {
             type: "string",
-            description: "City name in English (e.g., 'Manali', 'Goa', 'Paris')"
-          }
+            description:
+              "City name in English (e.g., 'Manali', 'Goa', 'Paris')",
+          },
         },
-        required: ["city"]
-      }
-    }
+        required: ["city"],
+      },
+    },
   },
   {
     type: "function",
@@ -55,12 +56,13 @@ export const TOOL_SCHEMAS = [
         properties: {
           expression: {
             type: "string",
-            description: "A math expression using digits and + - * / ( ) . Example: '2500 * 15 + 800'"
-          }
+            description:
+              "A math expression using digits and + - * / ( ) . Example: '2500 * 15 + 800'",
+          },
         },
-        required: ["expression"]
-      }
-    }
+        required: ["expression"],
+      },
+    },
   },
   {
     type: "function",
@@ -73,12 +75,12 @@ export const TOOL_SCHEMAS = [
       parameters: {
         type: "object",
         properties: {},
-        required: []
-      }
-    }
-  }
+        required: [],
+      },
+    },
+  },
 ];
-
+ 
 // ============================================================
 // 2. REGISTRY — the actual implementations
 // ============================================================
@@ -86,5 +88,5 @@ export const TOOL_SCHEMAS = [
 export const TOOL_REGISTRY = {
   getWeather,
   calculator,
-  currentTime
+  currentTime,
 };

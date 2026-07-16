@@ -32,7 +32,7 @@ import { GRUMPY_SYSTEM_PROMPT } from "./config/grumpy.js";
 import { generateItinerary } from "./lib/itineraryGenerator.js";
 
 // Day 3
-import { runAgent } from "./lib/agent.js";
+import { runAgentLangChain as runAgent } from "./lib/agentLangChain.js";
 
 // Day 4
 import {
