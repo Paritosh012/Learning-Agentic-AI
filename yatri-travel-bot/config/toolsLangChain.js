@@ -85,4 +85,47 @@ const currentTime = tool(
   },
 );
 
-export const tools = [getWeather, calculator, currentTime];
+const getCurrency = tool(
+  async ({ from, to, amount }) => {
+    try {
+      const res = await fetch(
+        `https://api.frankfurter.app/latest?from=${from}&to=${to}&amount=${amount}`,
+      );
+
+      if (!res.ok) {
+        return `Could not fetch exchange rate for ${from} to ${to} (status ${res.status})`;
+      }
+
+      const data = await res.json();
+      const converted = data.rates?.[to];
+
+      if (converted === undefined) {
+        return `No exchange rate found for ${from} to ${to}. Check the currency codes.`;
+      }
+
+      return `${amount} ${from} = ${converted} ${to} (rate as of ${data.date})`;
+    } catch (err) {
+      return `Currency fetch failed: ${err.message}`;
+    }
+  },
+  {
+    name: "currency_converter",
+    description:
+      "Converts an amount of money from one currency to another using live exchange rates. Use this whenever the user mentions a budget or price in a foreign currency (e.g. dollars, euros, pounds) and needs it in another currency like rupees.",
+    schema: z.object({
+      from: z
+        .string()
+        .length(3)
+        .describe("The 3-letter currency code to convert FROM, e.g. 'USD'"),
+      to: z
+        .string()
+        .length(3)
+        .describe("The 3-letter currency code to convert TO, e.g. 'INR'"),
+      amount: z
+        .number()
+        .describe("The amount of money to convert, e.g. 600"),
+    }),
+  },
+);
+
+export const tools = [getWeather, calculator, currentTime, getCurrency];

@@ -165,16 +165,39 @@ function printItinerary(itinerary) {
 
 // Fire-and-forget fact extraction — doesn't block user response
 function extractAndSave(userMessage) {
+  // Guard: skip short messages entirely
+  const words = userMessage.trim().split(/\s+/);
+  if (words.length < 4) return;
+
   extractFacts(userMessage, profile)
     .then((facts) => {
-      if (Object.keys(facts).length > 0) {
-        mergeFacts(profile, facts);
+      // Remove keys with null, undefined, empty string, or empty array values
+      const realFacts = {};
+      for (const [key, value] of Object.entries(facts)) {
+        if (value === null || value === undefined || value === "") continue;
+        if (Array.isArray(value) && value.length === 0) continue;
+        if (typeof value === "object" && !Array.isArray(value)) {
+          // Check nested objects — filter out empty ones too
+          const nested = {};
+          for (const [k, v] of Object.entries(value)) {
+            if (v === null || v === undefined || v === "") continue;
+            if (Array.isArray(v) && v.length === 0) continue;
+            nested[k] = v;
+          }
+          if (Object.keys(nested).length > 0) realFacts[key] = nested;
+        } else {
+          realFacts[key] = value;
+        }
+      }
+
+      if (Object.keys(realFacts).length > 0) {
+        mergeFacts(profile, realFacts);
         saveProfile(profile).then(() => {
-          console.log(`💭 [Saved: ${Object.keys(facts).join(", ")}]\n`);
+          console.log(`💭 [Saved: ${Object.keys(realFacts).join(", ")}]\n`);
         });
       }
     })
-    .catch(() => {}); // Non-fatal — silently ignore
+    .catch(() => {});
 }
 
 // ─────────────────────────────────────────────────────────────────

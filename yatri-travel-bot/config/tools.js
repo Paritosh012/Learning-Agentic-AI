@@ -79,8 +79,33 @@ export const TOOL_SCHEMAS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "getCurrency",
+      description:
+        "Get the current exchange rate for a currency pair. Use this whenever the user asks about " +
+        "currency conversion or exchange rates. Always check the real-time rate before providing an answer.",
+      parameters: {
+        type: "object",
+        properties: {
+          fromCurrency: {
+            type: "string",
+            description:
+              "The currency code to convert from (e.g., 'USD', 'EUR', 'INR')",
+          },
+          toCurrency: {
+            type: "string",
+            description:
+              "The currency code to convert to (e.g., 'INR', 'USD', 'EUR')",
+          },
+        },
+        required: ["fromCurrency", "toCurrency"],
+      },
+    },
+  },
 ];
- 
+
 // ============================================================
 // 2. REGISTRY — the actual implementations
 // ============================================================

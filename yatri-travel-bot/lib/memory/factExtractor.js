@@ -88,8 +88,11 @@ Your job: find NEW travel-relevant facts about the user. Nothing else.
  * @returns {Promise<Object>} - partial profile object with only new fields
  */
 export async function extractFacts(userMessage, currentProfile) {
-  // ── GUARD 1: Skip short messages (under 4 words = no extractable facts) ──
-  const words = userMessage.trim().split(/\s+/);
+  const trimmed = userMessage.trim();
+  const words = trimmed.split(/\s+/);
+  const lower = trimmed.toLowerCase();
+
+  // ── GUARD 1: Skip short messages ──
   if (words.length < 4) return {};
 
   // ── GUARD 2: Skip greetings and filler ──
@@ -97,30 +100,43 @@ export async function extractFacts(userMessage, currentProfile) {
     /^(hi|hello|hey|ok|okay|thanks|bye|yes|no|sure|great|hm+|oye|arre|yaar)[\s!?.]*$/i,
     /^(nothing|notthere|nowhere|nope|nah|fine|cool|good)[\s!?.]*$/i,
   ];
+  if (SKIP_PATTERNS.some((p) => p.test(trimmed))) return {};
 
-  if (SKIP_PATTERNS.some((p) => p.test(userMessage.trim()))) {
-    return {};
-  }
-
-  // ── GUARD 3: Skip questions (questions reveal no facts about the user) ──
-  const trimmed = userMessage.trim();
+  // ── GUARD 3: Skip questions ──
   if (
-    trimmed.startsWith("what ") ||
-    trimmed.startsWith("how ") ||
-    trimmed.startsWith("why ") ||
-    trimmed.startsWith("when ") ||
-    trimmed.startsWith("where ") ||
-    trimmed.startsWith("who ") ||
-    trimmed.startsWith("can ") ||
-    trimmed.startsWith("do ") ||
-    trimmed.startsWith("is ") ||
+    lower.startsWith("what ") ||
+    lower.startsWith("how ") ||
+    lower.startsWith("why ") ||
+    lower.startsWith("when ") ||
+    lower.startsWith("where ") ||
+    lower.startsWith("who ") ||
+    lower.startsWith("can ") ||
+    lower.startsWith("do ") ||
+    lower.startsWith("is ") ||
     trimmed.endsWith("?")
   ) {
     return {};
   }
+
+  // ── GUARD 4: Skip messages directed at Yatri (not about user) ──
+  if (
+    lower.startsWith("you ") ||
+    lower.startsWith("you're ") ||
+    lower.startsWith("your ") ||
+    lower.startsWith("i will ") ||
+    lower.startsWith("i wanna ") ||
+    lower.includes("fire you") ||
+    lower.includes("your job") ||
+    lower.includes("complaint about you") ||
+    lower.includes("idiot") ||
+    lower.includes("stupid")
+  ) {
+    return {};
+  }
+
   try {
     const response = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile", // Cheap model for extraction
+      model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: EXTRACTION_PROMPT },
         {
@@ -129,7 +145,7 @@ export async function extractFacts(userMessage, currentProfile) {
         },
       ],
       max_tokens: 512,
-      temperature: 0.1, // Very low — we want consistent extraction
+      temperature: 0.1,
       response_format: { type: "json_object" },
     });
 
@@ -137,7 +153,7 @@ export async function extractFacts(userMessage, currentProfile) {
     return JSON.parse(raw);
   } catch (err) {
     console.error("⚠️  Fact extraction failed:", err.message);
-    return {}; // Fail safe — return empty so we don't corrupt the profile
+    return {};
   }
 }
 
